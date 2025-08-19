@@ -5,9 +5,9 @@ const InventoryAssignmentSchema = new mongoose.Schema({
     quantity: { type: Number, required: true },        // Quantity assigned in this transaction
     employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
     jobworker: { type: mongoose.Schema.Types.ObjectId, ref: 'JobWorker' },
-    status: { type: String, enum: ['Pending', 'Cleared'], default: 'Pending' },
+    status: { type: String, enum: ['Pending', 'InProgress', 'Cleared'], default: 'Pending' },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },  // Who assigned
-    issueDetails: String,
+    issueDetails: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
 
