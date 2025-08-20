@@ -3,8 +3,8 @@ const { createInventory, updateInventory, getInventoryById, getInventories, dele
 const router = express.Router();
 
 router.post('/add-inventory', createInventory)
-// router.put('/update-inventory', updateInventory)
-// router.get('/get-inventory', getInventoryById)
+router.put('/update-inventory', updateInventory)
+router.get('/get-inventory', getInventoryById)
 router.get('/all-inventory', getInventories);
 router.delete('/delete-inventory', deleteInventory)
 router.post('/assign-toJobworker', assignToJobWorker)

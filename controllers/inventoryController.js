@@ -97,54 +97,7 @@
 //     }
 // }
 
-// // 🛠 Update Inventory Log
-// exports.updateInventory = async (req, res) => {
-//     console.log("🔄 Received request to update inventory log...");
 
-//     try {
-//         const { id, ...updateData } = req.body;
-
-//         // 🛑 Check if ID is provided
-//         if (!id) {
-//             console.error("❌ No ID provided in request");
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Inventory log ID is required."
-//             });
-//         }
-
-//         // ✏️ Attempt update
-//         const updatedLog = await InventoryLog.findByIdAndUpdate(
-//             id,
-//             { $set: updateData },
-//             { new: true, runValidators: true }
-//         );
-
-//         if (!updatedLog) {
-//             console.warn(`⚠️ Inventory log not found for ID: ${id}`);
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Inventory log not found."
-//             });
-//         }
-
-//         console.log(`✅ Inventory log updated: ${updatedLog._id}`);
-
-//         res.json({
-//             success: true,
-//             message: "Inventory log updated successfully.",
-//             data: updatedLog
-//         });
-
-//     } catch (error) {
-//         console.error("🔥 Error updating inventory log:", error);
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error while updating inventory log.",
-//             error: error.message
-//         });
-//     }
-// };
 
 // // 🗑 Delete Inventory Log
 // exports.deleteInventory = async (req, res) => {
@@ -259,38 +212,7 @@
 // /**
 //  * 👁️ View Single Inventory Log
 //  */
-// exports.getInventoryById = async (req, res) => {
-//     try {
-//         const { id } = req.body;
 
-//         const inventory = await InventoryLog.findById(id)
-//             .populate('product')
-//             .populate('employee')
-//             .populate('jobworker')
-//             .populate('vendor')
-//             .populate('firm');
-
-//         if (!inventory) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Inventory log not found."
-//             });
-//         }
-
-//         res.json({
-//             success: true,
-//             message: "Inventory log fetched successfully.",
-//             data: inventory
-//         });
-//     } catch (error) {
-//         console.error("🔥 Error fetching inventory log:", error.message);
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error while fetching inventory log.",
-//             error: error.message
-//         });
-//     }
-// };
 
 // exports.assignToJobWorker = async (req, res) => {
 //     try {
@@ -376,36 +298,38 @@
 // controllers/inventoryController.js
 const Inventory = require("../model/inventory");
 const InventoryAssignment = require("../model/InventoryAssign");
-// const Product = require("../model/Product");
-// const Vendor = require("../model/Vendor");
-// const Jobworker = require("../model/JobWorker");
-// const Firm = require("../model/Firm");
-// const Employee = require("../model/Employee");
-// const User = require("../model/User");
 
 // 🛠 Add Stock (Create Inventory Batch)
 exports.createInventory = async (req, res) => {
+
     try {
-        const { product, quantity, vendor, issuedBy, firm } = req.body;
+        const { products, vendor, issuedBy, firm, notes } = req.body;
         console.log("🔄 Creating new inventory batch...", req.body);
 
-        if (!product || !quantity || !issuedBy) {
+        if (!products || !Array.isArray(products) || products.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "product, quantity, and issuedBy are required."
+                message: "At least one product with quantity is required."
+            });
+        }
+
+        if (!issuedBy) {
+            return res.status(400).json({
+                success: false,
+                message: "issuedBy is required."
             });
         }
 
         const newBatch = new Inventory({
-            product,
-            quantity,
+            products,
             vendor,
             issuedBy,
-            firm
+            firm,
+            notes
         });
 
         await newBatch.save();
-        console.log(`📦 Stock added → Product:${product}, Qty:${quantity}`);
+        console.log(`📦 Stock batch added → Products:${products.length}`);
 
         res.status(201).json({
             success: true,
@@ -488,7 +412,7 @@ exports.assignToJobWorker = async (req, res) => {
 exports.getInventories = async (req, res) => {
     try {
         const inventories = await Inventory.find()
-            .populate("product", "name sku")
+            .populate("products.product", "name sku") // 👈 populate inside array
             .populate("vendor", "name")
             .populate("issuedBy", "name email")
             .populate("firm", "name")
@@ -509,7 +433,7 @@ exports.getInventories = async (req, res) => {
     }
 };
 
-// 📋 Get Assignments
+
 // 📋 Get Assignments (optionally filter by inventoryId)
 exports.getAssignments = async (req, res) => {
     try {
@@ -583,11 +507,6 @@ exports.deleteInventory = async (req, res) => {
     }
 };
 
-/**
- * 🛠 Update status of Inventory Assignment
- * PATCH /api/inventory/assignment/status
- * Body: { id, status }
- */
 exports.updateAssignmentStatus = async (req, res) => {
     try {
         const { batchId, status } = req.body;
@@ -623,6 +542,88 @@ exports.updateAssignmentStatus = async (req, res) => {
             success: false,
             message: "Server error while updating assignment status.",
             error: err.message
+        });
+    }
+};
+
+exports.getInventoryById = async (req, res) => {
+    try {
+        const { id } = req.body;
+
+        const inventory = await InventoryLog.findById(id)
+            .populate('product')
+            .populate('employee')
+            .populate('jobworker')
+            .populate('vendor')
+            .populate('firm');
+
+        if (!inventory) {
+            return res.status(404).json({
+                success: false,
+                message: "Inventory log not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Inventory log fetched successfully.",
+            data: inventory
+        });
+    } catch (error) {
+        console.error("🔥 Error fetching inventory log:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching inventory log.",
+            error: error.message
+        });
+    }
+};
+
+// // 🛠 Update Inventory Log
+exports.updateInventory = async (req, res) => {
+    console.log("🔄 Received request to update inventory log...");
+
+    try {
+        const { id, ...updateData } = req.body;
+
+        // 🛑 Check if ID is provided
+        if (!id) {
+            console.error("❌ No ID provided in request");
+            return res.status(400).json({
+                success: false,
+                message: "Inventory log ID is required."
+            });
+        }
+
+        // ✏️ Attempt update
+        const updatedLog = await InventoryLog.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedLog) {
+            console.warn(`⚠️ Inventory log not found for ID: ${id}`);
+            return res.status(404).json({
+                success: false,
+                message: "Inventory log not found."
+            });
+        }
+
+        console.log(`✅ Inventory log updated: ${updatedLog._id}`);
+
+        res.json({
+            success: true,
+            message: "Inventory log updated successfully.",
+            data: updatedLog
+        });
+
+    } catch (error) {
+        console.error("🔥 Error updating inventory log:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error while updating inventory log.",
+            error: error.message
         });
     }
 };
