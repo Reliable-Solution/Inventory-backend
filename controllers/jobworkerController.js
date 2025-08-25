@@ -3,7 +3,7 @@ const express = require('express');
 const JobWorker = require('../model/jobworker');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
-const InventoryAssignment = require('../model/InventoryAssign');
+const WorkAssignment = require('../model/WorkAssignment');
 
 /**
  * 🚀 Create a new Job Worker
@@ -78,7 +78,6 @@ exports.updateJobWorker = async (req, res) => {
         return res.status(500).json({ error: "Server error while updating job worker." });
     }
 };
-
 
 /**
  * 🗑️ Delete a Job Worker
@@ -179,7 +178,7 @@ exports.getAssignedProductsCount = async (req, res) => {
         }
 
         // Use lean() for performance as we only need the count
-        const jobworkerInventorys = await InventoryAssignment.find({ jobWorker: jobWorkerId }).lean();
+        const jobworkerInventorys = await WorkAssignment.find({ jobWorker: jobWorkerId }).lean();
 
         console.log(`📦 Job Worker ${jobWorkerId} has assigned products.`);
         res.json({
@@ -210,7 +209,7 @@ exports.getAssignedInventoryStatusCounts = async (req, res) => {
         }
 
         // 🔍 Aggregate quantity sums by status
-        const statusCounts = await InventoryAssignment.aggregate([
+        const statusCounts = await WorkAssignment.aggregate([
             { $match: { jobworker: new mongoose.Types.ObjectId(jobWorkerId) } },
             { $group: { _id: "$status", totalQuantity: { $sum: "$quantity" } } }
         ]);

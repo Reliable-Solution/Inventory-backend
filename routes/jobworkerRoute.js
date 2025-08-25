@@ -11,5 +11,6 @@ router.delete('/delete-jobworker', deleteJobWorker);      // Delete vendor
 router.post('/login-jobworker', loginJobworker)
 router.post('/jobworker-inventory', getAssignedProductsCount); // Get assigned products count
 router.post('/assigned-products-bystatus', getAssignedInventoryStatusCounts)
+// router.put('/update-workstatus')
 
 module.exports = router;

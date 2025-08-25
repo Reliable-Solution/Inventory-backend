@@ -5,14 +5,17 @@ const InventorySchema = new mongoose.Schema({
         {
             product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
             quantity: { type: Number, required: true },
+            avaliableStock: { type: Number, default: 0 },
             discount: { type: Number, default: 0 },
-            price: { type: Number, required: true },
         }
     ],
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
     issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     firm: { type: mongoose.Schema.Types.ObjectId, ref: 'Firm' },
+    challanNo: { type: String, required: true },
+    challanDate: { type: Date, required: true },
     notes: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });
+
 module.exports = mongoose.model('Inventory', InventorySchema);

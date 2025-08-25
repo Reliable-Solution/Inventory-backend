@@ -297,13 +297,13 @@
 
 // controllers/inventoryController.js
 const Inventory = require("../model/inventory");
-const InventoryAssignment = require("../model/InventoryAssign");
+// const WorkAssignment = require("../model/InventoryAssign");
+const WorkAssignment = require('../model/WorkAssignment')
 
 // 🛠 Add Stock (Create Inventory Batch)
 exports.createInventory = async (req, res) => {
-
     try {
-        const { products, vendor, issuedBy, firm, notes } = req.body;
+        const { products, vendor, issuedBy, firm, notes, challanNo, challanDate } = req.body;
         console.log("🔄 Creating new inventory batch...", req.body);
 
         if (!products || !Array.isArray(products) || products.length === 0) {
@@ -320,12 +320,23 @@ exports.createInventory = async (req, res) => {
             });
         }
 
+        // ✅ inject availableStock = quantity for each product
+        const normalizedProducts = products.map(p => ({
+            product: p.product,
+            quantity: p.quantity,
+            availableStock: p.quantity,   // here we initialize it
+            discount: p.discount || 0
+        }));
+
+
         const newBatch = new Inventory({
-            products,
+            products: normalizedProducts,
             vendor,
             issuedBy,
             firm,
-            notes
+            notes,
+            challanNo,
+            challanDate
         });
 
         await newBatch.save();
@@ -347,59 +358,82 @@ exports.createInventory = async (req, res) => {
     }
 };
 
-// 🛠 Assign Stock to Worker
-exports.assignToJobWorker = async (req, res) => {
+// 🛠 Assign Stock to Multiple Workers
+exports.assignToWorkers = async (req, res) => {
     try {
-        const { inventory, quantity, jobworker, employee, assignedBy, issueDetails } = req.body;
+        const { inventoryId, workers, assignedBy, issueDetails } = req.body;
 
-        if (!inventory || !quantity || (!jobworker && !employee)) {
+        if (!inventoryId || !workers || !Array.isArray(workers) || workers.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "inventory, quantity and either jobworker/employee are required."
+                message: "inventoryId and at least one worker with quantity are required."
             });
         }
 
         // ✅ Fetch inventory batch
-        const batch = await Inventory.findById(inventory);
+        const batch = await Inventory.findById(inventoryId);
         if (!batch) {
-            return res.status(404).json({ success: false, message: "Inventory batch not found." });
+            return res.status(404).json({ success: false, message: "inventoryId batch not found." });
         }
 
-        // ✅ Check stock
-        if (batch.quantity < quantity) {
-            return res.status(400).json({
-                success: false,
-                message: `Not enough stock in this batch. Available: ${batch.quantity}`
+        console.log("==== INVENTORY BATCH LOG START ====");
+        console.log(JSON.stringify(batch, null, 2));
+        console.log("==== INVENTORY BATCH LOG END ====");
+
+        const createdAssignments = [];
+
+        // ✅ Iterate over workers and update correct product stock
+        for (const w of workers) {
+            const productInBatch = batch.products.find(
+                p => p.product.toString() === w.productId
+            );
+
+            if (!productInBatch) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Product ${w.productId} not found in this inventory batch`
+                });
+            }
+
+            // ✅ Check stock for this product
+            if (productInBatch.avaliableStock < w.quantity) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Not enough stock for product ${w.productId}. Available: ${productInBatch.avaliableStock}, Needed: ${w.quantity}`
+                });
+            }
+
+            // ✅ Deduct stock
+            productInBatch.avaliableStock -= w.quantity;
+
+            // ✅ Create assignment record
+            const assignment = new WorkAssignment({
+                InventoryId: inventoryId,
+                productId: w.productId,
+                jobworker: w.jobworker || null,
+                quantity: w.quantity,
+                assignedBy,
+                issueDetails,
+                status: "Pending"
             });
+
+            await assignment.save();
+            createdAssignments.push(assignment);
         }
 
-        // ✅ Reduce stock from batch
-        batch.quantity -= quantity;
+        // ✅ Save updated inventory after processing all workers
         await batch.save();
 
-        // ✅ Create assignment record
-        const assignment = new InventoryAssignment({
-            InventoryId: inventory,
-            quantity,
-            jobworker: jobworker || null,
-            // employee: employee || null,
-            assignedBy,
-            issueDetails,
-            status: "Pending"
-        });
-
-        await assignment.save();
-
-        console.log(`📤 Assigned ${quantity} from Batch:${inventory} → ${jobworker ? "Jobworker" : "Employee"} `);
+        console.log(`📤 Assigned from Batch:${inventoryId} → ${workers.length} workers`);
 
         res.status(201).json({
             success: true,
             message: "Inventory assigned successfully.",
-            data: assignment
+            data: createdAssignments
         });
 
     } catch (err) {
-        console.error("🔥 Error assigning inventory:", err.message);
+        console.error("🔥 Error assigning inventory:", err);
         res.status(500).json({
             success: false,
             message: "Server error while assigning inventory.",
@@ -407,6 +441,8 @@ exports.assignToJobWorker = async (req, res) => {
         });
     }
 };
+
+
 
 // 📋 Get Inventory Batches
 exports.getInventories = async (req, res) => {
@@ -433,14 +469,13 @@ exports.getInventories = async (req, res) => {
     }
 };
 
-
 // 📋 Get Assignments (optionally filter by inventoryId)
 exports.getAssignments = async (req, res) => {
     try {
         const { inventoryId } = req.body;
         console.log("📋 Fetching assignments for inventory:", req.body);
 
-        const assignments = await InventoryAssignment.find({ InventoryId: inventoryId })
+        const assignments = await WorkAssignment.find({ InventoryId: inventoryId })
             .populate("InventoryId", "product quantity")
             .populate("jobworker", "name phone")
             // .populate("employee", "name email")
@@ -503,45 +538,6 @@ exports.deleteInventory = async (req, res) => {
             success: false,
             message: "Server error while deleting inventory log.",
             error: error.message
-        });
-    }
-};
-
-exports.updateAssignmentStatus = async (req, res) => {
-    try {
-        const { batchId, status } = req.body;
-
-        if (!batchId || !status) {
-            return res.status(400).json({
-                success: false,
-                message: "Assignment id and status are required."
-            });
-        }
-
-        const updatedAssignment = await InventoryAssignment.findByIdAndUpdate(
-            { _id: batchId },
-            { $set: { status } },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedAssignment) {
-            return res.status(404).json({
-                success: false,
-                message: "Inventory assignment not found."
-            });
-        }
-
-        res.json({
-            success: true,
-            message: "Assignment status updated successfully.",
-            data: updatedAssignment
-        });
-    } catch (err) {
-        console.error("🔥 Error updating assignment status:", err.message);
-        res.status(500).json({
-            success: false,
-            message: "Server error while updating assignment status.",
-            error: err.message
         });
     }
 };
@@ -624,6 +620,45 @@ exports.updateInventory = async (req, res) => {
             success: false,
             message: "Server error while updating inventory log.",
             error: error.message
+        });
+    }
+};
+
+exports.updateWorkAssignmentStatus = async (req, res) => {
+    try {
+        const { assignmentId, status } = req.body;
+
+        if (!assignmentId || !status) {
+            return res.status(400).json({
+                success: false,
+                message: "assignmentId and status are required."
+            });
+        }
+
+        const updatedAssignment = await WorkAssignment.findByIdAndUpdate(
+            assignmentId,
+            { $set: { status } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedAssignment) {
+            return res.status(404).json({
+                success: false,
+                message: "Work assignment not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Work assignment status updated successfully.",
+            data: updatedAssignment
+        });
+    } catch (err) {
+        console.error("🔥 Error updating work assignment status:", err.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while updating work assignment status.",
+            error: err.message
         });
     }
 };

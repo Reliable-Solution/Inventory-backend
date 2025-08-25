@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const InventoryAssignmentSchema = new mongoose.Schema({
+const WorkerAssignmentSchema = new mongoose.Schema({
     InventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', required: true }, // Reference to Inventory batch
-    quantity: { type: Number, required: true },        // Quantity assigned in this transaction
-    employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    quantity: { type: Number, required: true }, // Quantity assigned in this transaction
     jobworker: { type: mongoose.Schema.Types.ObjectId, ref: 'JobWorker' },
     status: { type: String, enum: ['Pending', 'InProgress', 'Cleared'], default: 'Pending' },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },  // Who assigned
@@ -11,5 +11,5 @@ const InventoryAssignmentSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-const InventoryAssignment = mongoose.model('InventoryAssignment', InventoryAssignmentSchema);
-module.exports = InventoryAssignment;
+
+module.exports = mongoose.model('WorkAssignment', WorkerAssignmentSchema);
