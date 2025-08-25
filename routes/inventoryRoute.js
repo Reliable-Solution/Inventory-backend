@@ -8,7 +8,7 @@ router.get('/get-inventory', getInventoryById)
 router.get('/all-inventory', getInventories);
 router.delete('/delete-inventory', deleteInventory)
 router.post('/assign-stock', assignToWorkers)
-router.put('/update-assignment-status', updateWorkAssignmentStatus)
+router.post('/update-assignment-status', updateWorkAssignmentStatus)
 router.post('/get-assignments', getAssignments)
 
 module.exports = router;

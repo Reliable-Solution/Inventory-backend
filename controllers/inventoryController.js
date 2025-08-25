@@ -362,6 +362,7 @@ exports.createInventory = async (req, res) => {
 exports.assignToWorkers = async (req, res) => {
     try {
         const { inventoryId, workers, assignedBy, issueDetails } = req.body;
+        console.log(req.body, 'req.body')
 
         if (!inventoryId || !workers || !Array.isArray(workers) || workers.length === 0) {
             return res.status(400).json({
@@ -389,6 +390,7 @@ exports.assignToWorkers = async (req, res) => {
             );
 
             if (!productInBatch) {
+                console.log(`Product ${w.productId} not found in this inventory batch`)
                 return res.status(400).json({
                     success: false,
                     message: `Product ${w.productId} not found in this inventory batch`
@@ -397,6 +399,7 @@ exports.assignToWorkers = async (req, res) => {
 
             // ✅ Check stock for this product
             if (productInBatch.avaliableStock < w.quantity) {
+                console.log(`Not enough stock for product ${w.productId}. Available: ${productInBatch.avaliableStock}, Needed: ${w.quantity}`)
                 return res.status(400).json({
                     success: false,
                     message: `Not enough stock for product ${w.productId}. Available: ${productInBatch.avaliableStock}, Needed: ${w.quantity}`
