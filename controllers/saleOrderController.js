@@ -99,3 +99,32 @@ exports.createSaleOrder = async (req, res) => {
     }
 };
 
+// ✅ Get all Sales Orders
+exports.getSalesOrders = async (req, res) => {
+    try {
+        console.log("📦 Fetching all sales orders...");
+
+        const salesOrders = await SaleOrder.find()
+            .populate("vendor", "name email phone")
+            .populate("admin", "name email")
+            .populate("firm", "name")
+            .populate("products.product", "name sku")
+            .sort({ createdAt: -1 })
+            .lean();
+
+        console.log("✅ Sales Orders fetched:", salesOrders.length);
+
+        res.status(200).json({
+            success: true,
+            count: salesOrders.length,
+            data: salesOrders
+        });
+    } catch (err) {
+        console.error("🔥 Error fetching sales orders:", err);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching Sales Orders.",
+            error: err.message
+        });
+    }
+};

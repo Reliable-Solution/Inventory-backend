@@ -1,306 +1,7 @@
-// // controllers/inventoryController.js
-// const InventoryLog = require("../model/inventory");
-// const mongoose = require("mongoose");
-// const Product = require("../model/product");
-// const Vendor = require("../model/Vendor");
-// const Jobworker = require("../model/jobworker");
-// const Firm = require("../model/firm");
-// const Employee = require("../model/employee");
-
-// // 🛠 Create Inventory Log
-// exports.createInventory = async (req, res) => {
-//     try {
-//         const {
-//             product,
-//             quantity,
-//             action,      // 'add', 'assign', 'return', 'sale', 'transfer'
-//             issuedBy,
-//             // employee,    // optional
-//             // jobworker,   // optional
-//             vendor,      // optional
-//             firm,        // optional
-//             issueDetails // optional
-//         } = req.body;
-
-//         // Validate required fields
-//         if (!product || !quantity || !action || !issuedBy) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'product, quantity, action, and issuedBy are required.'
-//             });
-//         }
-
-//         // If assigning or returning, must specify either employee or jobworker
-//         // if (['assign', 'return'].includes(action)) {
-//         //     if (!employee && !jobworker) {
-//         //         return res.status(400).json({
-//         //             success: false,
-//         //             message: 'For assign/return, employee or jobworker must be specified.'
-//         //         });
-//         //     }
-//         // }
-
-//         // ---- STOCK CONTROL: Only allow assign/sale/transfer if enough stock is available ----
-//         if (['assign', 'sale', 'transfer'].includes(action)) {
-//             // Calculate current available stock for this product
-//             const logs = await InventoryLog.find({ product, status: 'Cleared' });
-//             let totalAdd = 0, totalAssign = 0, totalReturn = 0, totalSale = 0, totalTransfer = 0;
-
-//             logs.forEach(log => {
-//                 if (log.action === 'add') totalAdd += log.quantity;
-//                 if (log.action === 'assign') totalAssign += log.quantity;
-//                 if (log.action === 'return') totalReturn += log.quantity;
-//                 if (log.action === 'sale') totalSale += log.quantity;
-//                 if (log.action === 'transfer') totalTransfer += log.quantity;
-//             });
-
-//             const available = (totalAdd + totalReturn) - (totalAssign + totalSale + totalTransfer);
-
-//             if (available < quantity) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     message: `Not enough stock. Only ${available} available.`
-//                 });
-//             }
-//         }
-//         // -----------------------------------------------------------------------------
-
-//         // Create log entry
-//         const newLog = new InventoryLog({
-//             product,
-//             quantity,
-//             action,
-//             issuedBy,
-//             // employee: employee || null,
-//             // jobworker: jobworker || null,
-//             vendor: vendor || null,
-//             firm: firm || null,
-//             issueDetails,
-//             status: 'Pending' // (set to 'Cleared' if business process requires immediate clearing)
-//         });
-
-//         const savedLog = await newLog.save();
-
-//         return res.status(201).json({
-//             success: true,
-//             message: 'Inventory log created successfully.',
-//             data: savedLog
-//         });
-
-//     } catch (error) {
-//         console.error('🔥 Error creating inventory log:', error.message);
-//         res.status(500).json({
-//             success: false,
-//             message: 'Server error while creating inventory log.',
-//             error: error.message
-//         });
-//     }
-// }
-
-
-
-// // 🗑 Delete Inventory Log
-// exports.deleteInventory = async (req, res) => {
-//     console.log("🗑 Received request to delete inventory log...");
-
-//     try {
-//         const { id } = req.body;
-
-//         // 🛑 Validate ID
-//         if (!id) {
-//             console.error("❌ No inventory log ID provided");
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Inventory log ID is required."
-//             });
-//         }
-
-//         // 🚮 Attempt delete
-//         const deletedLog = await InventoryLog.findByIdAndDelete(id);
-
-//         if (!deletedLog) {
-//             console.warn(`⚠️ Inventory log not found for ID: ${id}`);
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Inventory log not found."
-//             });
-//         }
-
-//         console.log(`✅ Inventory log deleted successfully: ${deletedLog._id}`);
-
-//         res.json({
-//             success: true,
-//             message: "Inventory log deleted successfully.",
-//             deletedId: deletedLog._id
-//         });
-
-//     } catch (error) {
-//         console.error(`🔥 Error deleting inventory log (ID: ${req.params.id}):`, error);
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error while deleting inventory log.",
-//             error: error.message
-//         });
-//     }
-// };
-
-// exports.getInventories = async (req, res) => {
-//     const startTime = Date.now();
-//     console.log("📥 Fetching inventory logs...");
-
-//     try {
-//         // Filters
-//         const filter = {};
-//         if (req.query.firm) filter.firm = req.query.firm;
-//         if (req.query.action) filter.action = req.query.action;
-
-//         // Pagination
-//         const page = parseInt(req.query.page) || 1;
-//         const limit = parseInt(req.query.limit) || 20;
-//         const skip = (page - 1) * limit;
-
-//         // Field selection (optional: ?fields=product,quantity,action)
-//         const selectFields = req.query.fields
-//             ? req.query.fields.replace(/,/g, " ")
-//             : "";
-
-//         // Query
-//         const inventories = await InventoryLog.find(filter)
-//             .select(selectFields)
-//             .populate("product", "name sku")
-//             .populate("employee", "name email")
-//             .populate("jobworker", "name phone")
-//             .populate("vendor", "name")
-//             .populate("firm", "name")
-//             .sort({ createdAt: -1 })
-//             .skip(skip)
-//             .limit(limit);
-
-//         const total = await InventoryLog.countDocuments(filter);
-
-//         console.log(
-//             `✅ Found ${inventories.length} logs | Page ${page} of ${Math.ceil(
-//                 total / limit
-//             )} | ⏱ ${Date.now() - startTime}ms`
-//         );
-
-//         res.json({
-//             success: true,
-//             message: "Inventory logs fetched successfully.",
-//             count: inventories.length,
-//             total,
-//             page,
-//             totalPages: Math.ceil(total / limit),
-//             data: inventories
-//         });
-
-//     } catch (error) {
-//         console.error(
-//             `🔥 Error fetching inventory logs | Params: ${JSON.stringify(
-//                 req.query
-//             )} | Error: ${error.message}`
-//         );
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error while fetching inventory logs.",
-//             error: error.message
-//         });
-//     }
-// };
-
-
-// /**
-//  * 👁️ View Single Inventory Log
-//  */
-
-
-// exports.assignToJobWorker = async (req, res) => {
-//     try {
-//         const { product, quantity, jobworker, issuedBy, firm } = req.body;
-//         console.log("🔄 Assigning inventory to jobworker...", req.body);
-
-//         if (!product || !quantity || !jobworker) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "product, quantity, and jobworker are required."
-//             });
-//         }
-
-//         // 1. Get current stock
-//         const logs = await InventoryLog.find({ product });
-
-//         console.log(`📒 Found ${logs.length} cleared logs for product: ${product}`);
-
-//         let totalAdd = 0, totalAssign = 0, totalReturn = 0, totalSale = 0;
-
-//         logs.forEach(log => {
-//             if (log.action === 'add') {
-//                 totalAdd += log.quantity;
-//                 console.log(`➕ Added: ${log.quantity} (Total Add = ${totalAdd})`);
-//             }
-//             if (log.action === 'assign') {
-//                 totalAssign += log.quantity;
-//                 console.log(`📦 Assigned: ${log.quantity} (Total Assign = ${totalAssign})`);
-//             }
-//             if (log.action === 'return') {
-//                 totalReturn += log.quantity;
-//                 console.log(`↩️ Returned: ${log.quantity} (Total Return = ${totalReturn})`);
-//             }
-//             if (log.action === 'sale') {
-//                 totalSale += log.quantity;
-//                 console.log(`💰 Sold: ${log.quantity} (Total Sale = ${totalSale})`);
-//             }
-//         });
-
-//         // Final stock calculation
-//         const currentStock = (totalAdd + totalReturn) - (totalAssign + totalSale);
-
-//         console.log(`📊 Stock Calculation → (Add:${totalAdd} + Return:${totalReturn}) - (Assign:${totalAssign} + Sale:${totalSale}) = Current:${currentStock}`);
-
-//         if (currentStock < quantity) {
-//             console.warn(`⚠️ Stock shortage! Requested: ${quantity}, Available: ${currentStock}`);
-//             return res.status(400).json({
-//                 success: false,
-//                 message: `Not enough stock available. Requested: ${quantity}, Available: ${currentStock}`
-//             });
-//         }
-
-//         console.log(`✅ Stock check passed. Requested: ${quantity}, Available: ${currentStock}`);
-
-//         // 2. Create a new inventory log for this assignment (DO NOT update previous records!)
-//         const assignLog = new InventoryLog({
-//             product,
-//             quantity,
-//             action: 'assign',
-//             jobworker,
-//             issuedBy,
-//             firm,
-//             status: 'Pending'
-//         });
-//         await assignLog.save();
-
-//         res.status(201).json({
-//             success: true,
-//             message: "Inventory assigned to jobworker successfully.",
-//             data: assignLog
-//         });
-
-//     } catch (error) {
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error while assigning InventoryLog.",
-//             error: error.message
-//         });
-//     }
-// };
-
-
-// controllers/inventoryController.js
 const Inventory = require("../model/inventory");
-// const WorkAssignment = require("../model/InventoryAssign");
-const WorkAssignment = require('../model/WorkAssignment')
+const WorkAssignment = require('../model/WorkAssignment');
+const mongoose = require("mongoose");
 
-// 🛠 Add Stock (Create Inventory Batch)
 exports.createInventory = async (req, res) => {
     try {
         console.log("🔄 [createInventory] Incoming request body:", JSON.stringify(req.body, null, 2));
@@ -334,6 +35,7 @@ exports.createInventory = async (req, res) => {
                 discount: p.discount || 0
             };
         });
+        console.log(normalizedProducts, 'normalizedProducts')
 
         // ✅ Create new batch
         const newBatch = new Inventory({
@@ -367,7 +69,6 @@ exports.createInventory = async (req, res) => {
     }
 };
 
-// 🛠 Assign Stock to Multiple Workers
 exports.assignToWorkers = async (req, res) => {
     try {
         const { inventoryId, workers, assignedBy, issueDetails } = req.body;
@@ -383,6 +84,7 @@ exports.assignToWorkers = async (req, res) => {
         // ✅ Fetch inventory batch
         const batch = await Inventory.findById(inventoryId);
         if (!batch) {
+            console.log("inventoryId batch not found.", inventoryId);
             return res.status(404).json({ success: false, message: "inventoryId batch not found." });
         }
 
@@ -407,16 +109,18 @@ exports.assignToWorkers = async (req, res) => {
             }
 
             // ✅ Check stock for this product
-            if (productInBatch.avaliableStock < w.quantity) {
-                console.log(`Not enough stock for product ${w.productId}. Available: ${productInBatch.avaliableStock}, Needed: ${w.quantity}`)
+            if (productInBatch.availableStock < w.quantity) {
+                console.log(
+                    `Not enough stock for product ${w.productId}. Available: ${productInBatch.availableStock}, Needed: ${w.quantity}`
+                );
                 return res.status(400).json({
                     success: false,
-                    message: `Not enough stock for product ${w.productId}. Available: ${productInBatch.avaliableStock}, Needed: ${w.quantity}`
+                    message: `Not enough stock for product ${w.productId}. Available: ${productInBatch.availableStock}, Needed: ${w.quantity}`
                 });
             }
 
             // ✅ Deduct stock
-            productInBatch.avaliableStock -= w.quantity;
+            productInBatch.availableStock -= w.quantity;
 
             // ✅ Create assignment record
             const assignment = new WorkAssignment({
@@ -454,11 +158,10 @@ exports.assignToWorkers = async (req, res) => {
     }
 };
 
-// 📋 Get Inventory Batches
 exports.getInventories = async (req, res) => {
     try {
         const inventories = await Inventory.find()
-            .populate("products.product", "name sku") // 👈 populate inside array
+            .populate("products.product", "name sku")
             .populate("vendor", "name")
             .populate("issuedBy", "name email")
             .populate("firm", "name")
@@ -479,7 +182,6 @@ exports.getInventories = async (req, res) => {
     }
 };
 
-// 📋 Get Assignments (optionally filter by inventoryId)
 exports.getAssignments = async (req, res) => {
     try {
         const { inventoryId } = req.body;
@@ -585,7 +287,6 @@ exports.getInventoryById = async (req, res) => {
     }
 };
 
-// // 🛠 Update Inventory Log
 exports.updateInventory = async (req, res) => {
     console.log("🔄 Received request to update inventory log...");
 
@@ -639,6 +340,7 @@ exports.updateWorkAssignmentStatus = async (req, res) => {
         const { assignmentId, status } = req.body;
 
         if (!assignmentId || !status) {
+            console.log('assignmentId and status are required.')
             return res.status(400).json({
                 success: false,
                 message: "assignmentId and status are required."
@@ -652,6 +354,7 @@ exports.updateWorkAssignmentStatus = async (req, res) => {
         );
 
         if (!updatedAssignment) {
+            console.log('Work assignment not found.')
             return res.status(404).json({
                 success: false,
                 message: "Work assignment not found."
@@ -664,7 +367,7 @@ exports.updateWorkAssignmentStatus = async (req, res) => {
             data: updatedAssignment
         });
     } catch (err) {
-        console.error("🔥 Error updating work assignment status:", err.message);
+        console.log("🔥 Error updating work assignment status:", err);
         res.status(500).json({
             success: false,
             message: "Server error while updating work assignment status.",
@@ -672,3 +375,87 @@ exports.updateWorkAssignmentStatus = async (req, res) => {
         });
     }
 };
+
+exports.getInventoriesByJW = async (req, res) => {
+    try {
+        console.log("📦 Fetching inventories...");
+
+        const inventories = await Inventory.find()
+            .populate("vendor", "name")
+            .populate("issuedBy", "name email")
+            .populate("firm", "name")
+            .sort({ createdAt: -1 })
+            .lean();
+
+        console.log("✅ Inventories found:", inventories.length);
+
+        const inventoryIds = inventories.map(inv => inv._id);
+        console.log("🆔 Inventory IDs:", inventoryIds);
+
+        console.log("🔎 Fetching work assignments for inventories...");
+        const assignments = await WorkAssignment.find({
+            InventoryId: { $in: inventoryIds }
+        })
+            .populate("productId", "name sku")
+            .populate("jobworker", "name phone")
+            .lean();
+
+        console.log("✅ WorkAssignments found:", assignments);
+
+        const groupedAssignments = {};
+        assignments.forEach(a => {
+            console.log(`📌 Processing assignment: ${a._id} for Inventory: ${a.InventoryId}`);
+
+            if (!groupedAssignments[a.InventoryId]) {
+                groupedAssignments[a.InventoryId] = {};
+            }
+
+            const jobworkerId = a.jobworker?._id?.toString() || "unassigned";
+            if (!groupedAssignments[a.InventoryId][jobworkerId]) {
+                groupedAssignments[a.InventoryId][jobworkerId] = {
+                    jobworker: a.jobworker || null,
+                    products: []
+                };
+            }
+
+            groupedAssignments[a.InventoryId][jobworkerId].products.push({
+                assignmentId: a._id, // 👈 WorkAssignment ID
+                product: a.productId,
+                quantity: a.quantity,
+                issueDetails: a.issueDetails,
+                status: a.status
+            });
+
+            console.log(`➡️ Added product ${a.productId?.name} (qty: ${a.quantity}) to jobworker ${jobworkerId}`);
+        });
+
+        const finalData = inventories.map(inv => {
+            console.log(`🧾 Preparing final data for challan ${inv.challanNo}`);
+            return {
+                challanNo: inv.challanNo,
+                challanDate: inv.challanDate,
+                jobworkers: Object.values(groupedAssignments[inv._id] || {})
+            };
+        });
+
+        console.log("🎉 Final response prepared. Count:", finalData.length);
+
+        // 👇 Full expanded log of the response
+        console.dir(finalData, { depth: null });
+
+        res.json({
+            success: true,
+            count: finalData.length,
+            data: finalData
+        });
+
+    } catch (err) {
+        console.error("🔥 Error fetching inventories:", err);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching inventories",
+            error: err.message
+        });
+    }
+};
+
