@@ -1,6 +1,5 @@
 const Product = require("../model/product");
 
-// Create
 // Creates a new product using request body data
 exports.createProduct = async (req, res) => {
     try {
@@ -14,7 +13,6 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// Read All (with filters if needed)
 // Fetches all products, supports query filters
 exports.getAllProducts = async (req, res) => {
     try {
@@ -30,7 +28,6 @@ exports.getAllProducts = async (req, res) => {
     }
 };
 
-// Read One
 // Fetches a single product by its ID
 exports.getProductById = async (req, res) => {
     try {
@@ -50,7 +47,6 @@ exports.getProductById = async (req, res) => {
     }
 };
 
-// Update
 // Updates a product by its ID with new data
 exports.updateProduct = async (req, res) => {
     try {
@@ -90,8 +86,6 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-
-// Delete
 // Deletes a product by its ID
 exports.deleteProduct = async (req, res) => {
     try {

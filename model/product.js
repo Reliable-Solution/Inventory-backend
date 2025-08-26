@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const ProductSchema = new mongoose.Schema({
-    title: {
+    name: {
         type: String,
         required: true,
         trim: true
@@ -19,11 +19,11 @@ const ProductSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
         required: true
-    }, 
+    },
     sku: {
         type: String,
         unique: true
-    },  
+    },
 }, {
     timestamps: true
 });

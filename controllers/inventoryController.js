@@ -303,10 +303,13 @@ const WorkAssignment = require('../model/WorkAssignment')
 // 🛠 Add Stock (Create Inventory Batch)
 exports.createInventory = async (req, res) => {
     try {
-        const { products, vendor, issuedBy, firm, notes, challanNo, challanDate } = req.body;
-        console.log("🔄 Creating new inventory batch...", req.body);
+        console.log("🔄 [createInventory] Incoming request body:", JSON.stringify(req.body, null, 2));
 
+        const { products, vendor, issuedBy, firm, notes, challanNo, challanDate } = req.body;
+
+        // Validation logs
         if (!products || !Array.isArray(products) || products.length === 0) {
+            console.warn("⚠️ [createInventory] Validation failed: No products provided");
             return res.status(400).json({
                 success: false,
                 message: "At least one product with quantity is required."
@@ -314,21 +317,25 @@ exports.createInventory = async (req, res) => {
         }
 
         if (!issuedBy) {
+            console.warn("⚠️ [createInventory] Validation failed: issuedBy is missing");
             return res.status(400).json({
                 success: false,
                 message: "issuedBy is required."
             });
         }
 
-        // ✅ inject availableStock = quantity for each product
-        const normalizedProducts = products.map(p => ({
-            product: p.product,
-            quantity: p.quantity,
-            availableStock: p.quantity,   // here we initialize it
-            discount: p.discount || 0
-        }));
+        // ✅ Normalize products
+        const normalizedProducts = products.map((p, idx) => {
+            console.log(`🔧 [createInventory] Processing product[${idx}] → id: ${p.product}, qty: ${p.quantity}, discount: ${p.discount || 0}`);
+            return {
+                product: p.product,
+                quantity: p.quantity,
+                availableStock: p.quantity,   // Initialize available stock
+                discount: p.discount || 0
+            };
+        });
 
-
+        // ✅ Create new batch
         const newBatch = new Inventory({
             products: normalizedProducts,
             vendor,
@@ -339,8 +346,10 @@ exports.createInventory = async (req, res) => {
             challanDate
         });
 
+        console.log("📝 [createInventory] New Inventory object created, saving to DB...");
+
         await newBatch.save();
-        console.log(`📦 Stock batch added → Products:${products.length}`);
+        console.log(`✅ [createInventory] Inventory batch saved successfully → _id: ${newBatch._id}, totalProducts: ${products.length}`);
 
         res.status(201).json({
             success: true,
@@ -349,7 +358,7 @@ exports.createInventory = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("🔥 Error creating inventory batch:", err.message);
+        console.error("🔥 [createInventory] Error:", err);
         res.status(500).json({
             success: false,
             message: "Server error while creating inventory batch.",
@@ -444,8 +453,6 @@ exports.assignToWorkers = async (req, res) => {
         });
     }
 };
-
-
 
 // 📋 Get Inventory Batches
 exports.getInventories = async (req, res) => {
