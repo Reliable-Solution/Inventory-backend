@@ -33,7 +33,7 @@ exports.registerUser = async (req, res) => {
         }
 
         // Admin/Employee must have firm
-        if (( role === 'Employee') && (!activeFirm && (!accessibleFirms || accessibleFirms.length === 0))) {
+        if ((role === 'Employee') && (!activeFirm && (!accessibleFirms || accessibleFirms.length === 0))) {
             console.warn(`⚠️ Admin or Employee request without firm data.`);
             return res.status(400).json({ message: 'Firm is required for Admin/Employee' });
         }
@@ -54,7 +54,7 @@ exports.registerUser = async (req, res) => {
         console.log('🔒 Password hashed successfully.');
 
         // Create the new user
-        const user = await User.create({    
+        const user = await User.create({
             name,
             email,
             password: hashedPassword,
@@ -117,7 +117,7 @@ exports.getUserByEmail = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         res.status(200).json({
-           sucess: true,
+            sucess: true,
             message: 'User fetched successfully',
             user
         });
@@ -147,10 +147,27 @@ exports.getAllAdmins = async (req, res) => {
         });
     } catch (err) {
         console.error('❌ Error fetching admins:', err);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            message: 'Server error while fetching admins', 
+            message: 'Server error while fetching admins',
             error: err && err.message ? err.message : 'Unknown error'
         });
+    }
+};
+
+exports.deleteUserById = async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+        const deletedUser = await User.findByIdAndDelete(userId);
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ message: 'User deleted successfully', user: deletedUser });
+    } catch (err) {
+        console.error('❌ Error deleting user:', err.message);
+        res.status(500).json({ message: 'Server error', error: err.message });
     }
 };

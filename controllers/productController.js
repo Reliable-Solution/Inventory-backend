@@ -3,13 +3,23 @@ const Product = require("../model/product");
 // Creates a new product using request body data
 exports.createProduct = async (req, res) => {
     try {
-        console.log("[CREATE] Request body:", req.body);
+        console.log("📝 [CREATE] Request body:", req.body);
+
+        // Example: Check for required fields (adjust as needed)
+        if (!req.body.title || !req.body.categoryId) {
+            console.warn("⚠️ [CREATE] Missing required fields: title or categoryId");
+            return res.status(400).json({ error: "Missing required fields: title or categoryId" });
+        }
+
         const product = await Product.create(req.body);
-        console.log("[CREATE] Product created:", product);
+        console.log("✅ [CREATE] Product created:", product);
         res.status(201).json(product);
     } catch (err) {
-        console.error("[CREATE] Error:", err.message);
-        res.status(400).json({ error: err.message });
+        console.error("❌ [CREATE] Error:", err);
+        if (err.name === "ValidationError") {
+            return res.status(400).json({ error: err.message });
+        }
+        res.status(500).json({ error: "Server error while creating product." });
     }
 };
 
